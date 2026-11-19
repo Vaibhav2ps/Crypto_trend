@@ -81,23 +81,46 @@
   // https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQdOuVmtCg5lvgc7REEaRQmRROxgWomZpCdQYCBydWyNRTtJdV8CLgwRE5FrVh03w-RwlTi4R0-CWgFqndVi_E-2Iv-uw9l0xDjemPV6AlYKojy5CEDETHZ3BOShmkyZiCNK-zxGNy3n93X_OaKRXsm6vD5IOVkdjyCpadkyG5-f4yzxGDT3bR2nfNjldPdDYVM-rYwbU2kap7c-ppnp07U61bMBaNwcdnHiRNTynsueW_FfLMmsj7Q6c9THU4t884upRux4ZmD-5mK8O7zQr2NWKOlIw&lib=MJ2wyyDBvB62zrE3mKifoYAaP9F9f_5iG
   const API_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQdOuVmtCg5lvgc7REEaRQmRROxgWomZpCdQYCBydWyNRTtJdV8CLgwRE5FrVh03w-RwlTi4R0-CWgFqndVi_E-2Iv-uw9l0xDjemPV6AlYKojy5CEDETHZ3BOShmkyZiCNK-zxGNy3n93X_OaKRXsm6vD5IOVkdjyCpadkyG5-f4yzxGDT3bR2nfNjldPdDYVM-rYwbU2kap7c-ppnp07U61bMBaNwcdnHiRNTynsueW_FfLMmsj7Q6c9THU4t884upRux4ZmD-5mK8O7zQr2NWKOlIw&lib=MJ2wyyDBvB62zrE3mKifoYAaP9F9f_5iG";
 
-  let alertsEnabled = false;
-  let lastNotifiedSignals = {}; // Ek hi signal par baar-baar alarm na baje iske liye
+  // Page refresh hone par bhi purani Alert setting yaad rakhein
+  let alertsEnabled = localStorage.getItem("crypto_alerts_on") === "true";
+  let lastNotifiedSignals = {};
+  let audioUnlocked = false;
 
-  // Browser Permission aur Audio Unlock karne ke liye
+  window.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("alarmToggleBtn");
+    if (alertsEnabled) {
+      btn.classList.add("active");
+      btn.innerText = "🔔 Alerts ON (Tap anywhere for sound)";
+    }
+  });
+
+  // Page refresh ke baad screen par kahin bhi click/touch karne par sound unlock karein
+  document.addEventListener("click", () => {
+    if (alertsEnabled && !audioUnlocked) {
+      audioUnlocked = true;
+      const btn = document.getElementById("alarmToggleBtn");
+      btn.innerText = "🔔 Alerts ON (Active)";
+      // Silent audio unlock
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        ctx.resume();
+      } catch (e) {}
+    }
+  });
+
   function enableAlerts() {
     alertsEnabled = !alertsEnabled;
+    localStorage.setItem("crypto_alerts_on", alertsEnabled);
     const btn = document.getElementById("alarmToggleBtn");
     
     if (alertsEnabled) {
+      audioUnlocked = true;
       btn.classList.add("active");
       btn.innerText = "🔔 Alerts ON (Active)";
       
-      // Desktop Notification permission maangein
       if ("Notification" in window && Notification.permission !== "granted") {
         Notification.requestPermission();
       }
-      // Audio context unlock karein
       playBeep(600, 0.15);
     } else {
       btn.classList.remove("active");
@@ -105,7 +128,6 @@
     }
   }
 
-  // Bina kisi external MP3 file ke sharp alarm sound bajane ka function
   function playBeep(freq = 880, duration = 0.4) {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -119,11 +141,10 @@
       osc.start();
       setTimeout(() => { osc.stop(); ctx.close(); }, duration * 1000);
     } catch (e) {
-      console.log("Audio blocked until user clicks button");
+      console.log("Audio blocked until screen tap");
     }
   }
 
-  // Double Beep Alarm + Browser Notification
   function triggerAlarm(message) {
     playBeep(880, 0.25);
     setTimeout(() => playBeep(1100, 0.35), 300);
@@ -166,12 +187,11 @@
       data.results.forEach(item => {
         const price = item.cp > 0 ? "$" + Number(item.cp).toLocaleString('en-US', { maximumFractionDigits: 4 }) : "-";
         
-        // Check karein ki naya BUY ya SELL signal aaya hai kya
         if ((item.code === "BUY" || item.code === "SELL") && lastNotifiedSignals[item.c] !== item.code) {
           alertMessages.push(`${item.c}: ${item.sig} (RSI: ${item.rsi})`);
           lastNotifiedSignals[item.c] = item.code;
         } else if (item.code === "NONE") {
-          lastNotifiedSignals[item.c] = "NONE"; // Reset jab sideways ho jaye
+          lastNotifiedSignals[item.c] = "NONE";
         }
 
         rows += `
@@ -189,7 +209,6 @@
 
       tbody.innerHTML = rows;
 
-      // Agar koi naya BUY/SELL signal mila hai aur Alerts ON hain to alarm bajayein
       if (alertsEnabled && alertMessages.length > 0) {
         triggerAlarm(alertMessages.join(" | "));
       }
