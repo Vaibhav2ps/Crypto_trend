@@ -24,8 +24,8 @@
     /* Table */
     .table-box { background: #181a20; border-radius: 12px; border: 1px solid #2b3139; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
-    th { background: #1e2329; color: #848e9c; font-size: 13px; padding: 14px 16px; text-transform: uppercase; border-bottom: 1px solid #2b3139; }
-    td { padding: 16px; border-bottom: 1px solid #2b3139; font-size: 15px; font-weight: 500; }
+    th { background: #1e2329; color: #848e9c; font-size: 13px; padding: 14px 16px; text-transform: uppercase; border-bottom: 1px solid #2b3139; white-space: nowrap; }
+    td { padding: 16px; border-bottom: 1px solid #2b3139; font-size: 15px; font-weight: 500; white-space: nowrap; }
     tr:last-child td { border-bottom: none; }
     tr:hover { background: #1e2329; }
 
@@ -62,12 +62,12 @@
       <thead>
         <tr>
           <th>Coin</th>
+          <th>Final Signal</th>
           <th>Live Price</th>
           <th>4H Trend</th>
           <th>1H Trend</th>
           <th>15M Trend</th>
           <th>RSI (15M)</th>
-          <th>Final Signal</th>
         </tr>
       </thead>
       <tbody id="tableBody">
@@ -81,7 +81,6 @@
   // https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQdOuVmtCg5lvgc7REEaRQmRROxgWomZpCdQYCBydWyNRTtJdV8CLgwRE5FrVh03w-RwlTi4R0-CWgFqndVi_E-2Iv-uw9l0xDjemPV6AlYKojy5CEDETHZ3BOShmkyZiCNK-zxGNy3n93X_OaKRXsm6vD5IOVkdjyCpadkyG5-f4yzxGDT3bR2nfNjldPdDYVM-rYwbU2kap7c-ppnp07U61bMBaNwcdnHiRNTynsueW_FfLMmsj7Q6c9THU4t884upRux4ZmD-5mK8O7zQr2NWKOlIw&lib=MJ2wyyDBvB62zrE3mKifoYAaP9F9f_5iG
   const API_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQdOuVmtCg5lvgc7REEaRQmRROxgWomZpCdQYCBydWyNRTtJdV8CLgwRE5FrVh03w-RwlTi4R0-CWgFqndVi_E-2Iv-uw9l0xDjemPV6AlYKojy5CEDETHZ3BOShmkyZiCNK-zxGNy3n93X_OaKRXsm6vD5IOVkdjyCpadkyG5-f4yzxGDT3bR2nfNjldPdDYVM-rYwbU2kap7c-ppnp07U61bMBaNwcdnHiRNTynsueW_FfLMmsj7Q6c9THU4t884upRux4ZmD-5mK8O7zQr2NWKOlIw&lib=MJ2wyyDBvB62zrE3mKifoYAaP9F9f_5iG";
 
-  // Page refresh hone par bhi purani Alert setting yaad rakhein
   let alertsEnabled = localStorage.getItem("crypto_alerts_on") === "true";
   let lastNotifiedSignals = {};
   let audioUnlocked = false;
@@ -94,13 +93,11 @@
     }
   });
 
-  // Page refresh ke baad screen par kahin bhi click/touch karne par sound unlock karein
   document.addEventListener("click", () => {
     if (alertsEnabled && !audioUnlocked) {
       audioUnlocked = true;
       const btn = document.getElementById("alarmToggleBtn");
       btn.innerText = "🔔 Alerts ON (Active)";
-      // Silent audio unlock
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         ctx.resume();
@@ -117,7 +114,6 @@
       audioUnlocked = true;
       btn.classList.add("active");
       btn.innerText = "🔔 Alerts ON (Active)";
-      
       if ("Notification" in window && Notification.permission !== "granted") {
         Notification.requestPermission();
       }
@@ -197,12 +193,12 @@
         rows += `
           <tr>
             <td><strong>${item.c}</strong></td>
+            <td><span class="badge ${getSignalClass(item.code)}">${item.sig}</span></td>
             <td>${price}</td>
             <td><span class="badge ${getBadgeClass(item.t4)}">${item.t4}</span></td>
             <td><span class="badge ${getBadgeClass(item.t1)}">${item.t1}</span></td>
             <td><span class="badge ${getBadgeClass(item.t15)}">${item.t15}</span></td>
             <td><strong>${item.rsi}</strong></td>
-            <td><span class="badge ${getSignalClass(item.code)}">${item.sig}</span></td>
           </tr>
         `;
       });
