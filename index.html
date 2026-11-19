@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Trend Scanner + Auto Alarm</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0b0e11; color: #eaecef; padding: 20px; }
+    .container { max-width: 1050px; margin: 0 auto; }
+    
+    /* Header */
+    .header { display: flex; justify-content: space-between; align-items: center; background: #181a20; padding: 18px 24px; border-radius: 12px; border: 1px solid #2b3139; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+    .header h1 { font-size: 20px; color: #f0b90b; }
+    .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .status-text { font-size: 13px; color: #848e9c; margin-top: 4px; }
+    button { background: #f0b90b; color: #0b0e11; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 13px; }
+    button:hover { background: #d9a507; }
+    button:disabled { background: #474d57; cursor: not-allowed; }
+    .btn-alarm { background: #2b3139; color: #eaecef; border: 1px solid #474d57; }
+    .btn-alarm.active { background: #0ecb81; color: #0b0e11; border-color: #0ecb81; }
+    .btn-test { background: #1e2329; color: #f0b90b; border: 1px solid #f0b90b; }
+
+    /* Table */
+    .table-box { background: #181a20; border-radius: 12px; border: 1px solid #2b3139; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { background: #1e2329; color: #848e9c; font-size: 13px; padding: 14px 16px; text-transform: uppercase; border-bottom: 1px solid #2b3139; }
+    td { padding: 16px; border-bottom: 1px solid #2b3139; font-size: 15px; font-weight: 500; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background: #1e2329; }
+
+    /* Badges */
+    .badge { padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: bold; display: inline-block; }
+    .buy { background: rgba(14, 203, 129, 0.15); color: #0ecb81; border: 1px solid rgba(14, 203, 129, 0.3); }
+    .sell { background: rgba(246, 70, 93, 0.15); color: #f6465d; border: 1px solid rgba(246, 70, 93, 0.3); }
+    .sideways { background: rgba(132, 142, 156, 0.15); color: #848e9c; }
+    
+    /* Signal Highlight */
+    .sig-buy { background: #0ecb81; color: #0b0e11; font-weight: bold; animation: pulse 1.5s infinite; }
+    .sig-sell { background: #f6465d; color: #ffffff; font-weight: bold; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+    .loader { text-align: center; padding: 40px; color: #f0b90b; font-size: 16px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>📊 Crypto Trend & RSI Scanner</h1>
+      <div class="status-text" id="lastUpdated">Last Updated: Loading...</div>
+    </div>
+    <div class="controls">
+      <button id="alarmToggleBtn" class="btn-alarm" onclick="enableAlerts()">🔔 Enable Sound & Alerts</button>
+      <button class="btn-test" onclick="triggerAlarm('TEST: BTCUSDT STRONG BUY')">🔊 Test Alarm</button>
+      <button id="refreshBtn" onclick="fetchData()">🔄 Refresh Now</button>
+    </div>
+  </div>
+
+  <div class="table-box">
+    <table>
+      <thead>
+        <tr>
+          <th>Coin</th>
+          <th>Live Price</th>
+          <th>4H Trend</th>
+          <th>1H Trend</th>
+          <th>15M Trend</th>
+          <th>RSI (15M)</th>
+          <th>Final Signal</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="7" class="loader">Fetching live market trends...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQdOuVmtCg5lvgc7REEaRQmRROxgWomZpCdQYCBydWyNRTtJdV8CLgwRE5FrVh03w-RwlTi4R0-CWgFqndVi_E-2Iv-uw9l0xDjemPV6AlYKojy5CEDETHZ3BOShmkyZiCNK-zxGNy3n93X_OaKRXsm6vD5IOVkdjyCpadkyG5-f4yzxGDT3bR2nfNjldPdDYVM-rYwbU2kap7c-ppnp07U61bMBaNwcdnHiRNTynsueW_FfLMmsj7Q6c9THU4t884upRux4ZmD-5mK8O7zQr2NWKOlIw&lib=MJ2wyyDBvB62zrE3mKifoYAaP9F9f_5iG
+  const API_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQdOuVmtCg5lvgc7REEaRQmRROxgWomZpCdQYCBydWyNRTtJdV8CLgwRE5FrVh03w-RwlTi4R0-CWgFqndVi_E-2Iv-uw9l0xDjemPV6AlYKojy5CEDETHZ3BOShmkyZiCNK-zxGNy3n93X_OaKRXsm6vD5IOVkdjyCpadkyG5-f4yzxGDT3bR2nfNjldPdDYVM-rYwbU2kap7c-ppnp07U61bMBaNwcdnHiRNTynsueW_FfLMmsj7Q6c9THU4t884upRux4ZmD-5mK8O7zQr2NWKOlIw&lib=MJ2wyyDBvB62zrE3mKifoYAaP9F9f_5iG";
+
+  let alertsEnabled = false;
+  let lastNotifiedSignals = {}; // Ek hi signal par baar-baar alarm na baje iske liye
+
+  // Browser Permission aur Audio Unlock karne ke liye
+  function enableAlerts() {
+    alertsEnabled = !alertsEnabled;
+    const btn = document.getElementById("alarmToggleBtn");
+    
+    if (alertsEnabled) {
+      btn.classList.add("active");
+      btn.innerText = "🔔 Alerts ON (Active)";
+      
+      // Desktop Notification permission maangein
+      if ("Notification" in window && Notification.permission !== "granted") {
+        Notification.requestPermission();
+      }
+      // Audio context unlock karein
+      playBeep(600, 0.15);
+    } else {
+      btn.classList.remove("active");
+      btn.innerText = "🔕 Alerts OFF";
+    }
+  }
+
+  // Bina kisi external MP3 file ke sharp alarm sound bajane ka function
+  function playBeep(freq = 880, duration = 0.4) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      setTimeout(() => { osc.stop(); ctx.close(); }, duration * 1000);
+    } catch (e) {
+      console.log("Audio blocked until user clicks button");
+    }
+  }
+
+  // Double Beep Alarm + Browser Notification
+  function triggerAlarm(message) {
+    playBeep(880, 0.25);
+    setTimeout(() => playBeep(1100, 0.35), 300);
+
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("🚨 Crypto Trend Signal!", {
+        body: message,
+        icon: "https://flaticon.com"
+      });
+    }
+  }
+
+  function getBadgeClass(status) {
+    if (status === "BUY") return "buy";
+    if (status === "SELL") return "sell";
+    return "sideways";
+  }
+
+  function getSignalClass(code) {
+    if (code === "BUY") return "sig-buy";
+    if (code === "SELL") return "sig-sell";
+    return "sideways";
+  }
+
+  async function fetchData() {
+    const btn = document.getElementById("refreshBtn");
+    const tbody = document.getElementById("tableBody");
+    btn.disabled = true;
+    btn.innerText = "⏳ Updating...";
+
+    try {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+
+      document.getElementById("lastUpdated").innerText = "Last Updated: " + data.updated + " IST (Auto-refreshes every 60s)";
+      
+      let rows = "";
+      let alertMessages = [];
+
+      data.results.forEach(item => {
+        const price = item.cp > 0 ? "$" + Number(item.cp).toLocaleString('en-US', { maximumFractionDigits: 4 }) : "-";
+        
+        // Check karein ki naya BUY ya SELL signal aaya hai kya
+        if ((item.code === "BUY" || item.code === "SELL") && lastNotifiedSignals[item.c] !== item.code) {
+          alertMessages.push(`${item.c}: ${item.sig} (RSI: ${item.rsi})`);
+          lastNotifiedSignals[item.c] = item.code;
+        } else if (item.code === "NONE") {
+          lastNotifiedSignals[item.c] = "NONE"; // Reset jab sideways ho jaye
+        }
+
+        rows += `
+          <tr>
+            <td><strong>${item.c}</strong></td>
+            <td>${price}</td>
+            <td><span class="badge ${getBadgeClass(item.t4)}">${item.t4}</span></td>
+            <td><span class="badge ${getBadgeClass(item.t1)}">${item.t1}</span></td>
+            <td><span class="badge ${getBadgeClass(item.t15)}">${item.t15}</span></td>
+            <td><strong>${item.rsi}</strong></td>
+            <td><span class="badge ${getSignalClass(item.code)}">${item.sig}</span></td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = rows;
+
+      // Agar koi naya BUY/SELL signal mila hai aur Alerts ON hain to alarm bajayein
+      if (alertsEnabled && alertMessages.length > 0) {
+        triggerAlarm(alertMessages.join(" | "));
+      }
+
+    } catch (error) {
+      tbody.innerHTML = `<tr><td colspan="7" class="loader" style="color:#f6465d;">Error fetching data. Check your Web App URL.</td></tr>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "🔄 Refresh Now";
+    }
+  }
+
+  fetchData();
+  setInterval(fetchData, 60000);
+</script>
+
+</body>
+</html>
