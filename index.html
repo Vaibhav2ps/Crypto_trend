@@ -24,8 +24,8 @@
     /* Table */
     .table-box { background: #181a20; border-radius: 12px; border: 1px solid #2b3139; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
-    th { background: #1e2329; color: #848e9c; font-size: 13px; padding: 14px 16px; text-transform: uppercase; border-bottom: 1px solid #2b3139; white-space: nowrap; }
-    td { padding: 16px; border-bottom: 1px solid #2b3139; font-size: 15px; font-weight: 500; white-space: nowrap; }
+    th { background: #1e2329; color: #848e9c; font-size: 13px; padding: 14px 16px; text-transform: uppercase; border-bottom: 1px solid #2b3139; }
+    td { padding: 16px; border-bottom: 1px solid #2b3139; font-size: 15px; font-weight: 500; }
     tr:last-child td { border-bottom: none; }
     tr:hover { background: #1e2329; }
 
@@ -78,44 +78,26 @@
 </div>
 
 <script>
-  //https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnS1tHl-3GGNusImlLLKG1AYEAl1a51mwkeE2NBDdHwJvViiSdzLZDHw0x_42Bo9u3wmcNdkIgqj-hCuNdGPAMWkpHdQ37kW5DY_8pME8aldWI3YO463-ZhQsqyU9tA-ibtlwS_WVYNd2xA0GicZc5DhPLnazGdbpSdkonpS2Lqy-He3c3N_SQT5mhbv19B8fPMXMGCoN5sqJYTqk5KEW5aT_OSLtWwoTT5f8StFKpWCPlwNQC9S-eZjoZEXfz_DTlBVtuy0q4i1HoMNqUoG5J9KLfB1-A&lib=MJ2wyyDBvB62zrE3mKifoYAaP9F9f_5iG 
-  const API_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnS1tHl-3GGNusImlLLKG1AYEAl1a51mwkeE2NBDdHwJvViiSdzLZDHw0x_42Bo9u3wmcNdkIgqj-hCuNdGPAMWkpHdQ37kW5DY_8pME8aldWI3YO463-ZhQsqyU9tA-ibtlwS_WVYNd2xA0GicZc5DhPLnazGdbpSdkonpS2Lqy-He3c3N_SQT5mhbv19B8fPMXMGCoN5sqJYTqk5KEW5aT_OSLtWwoTT5f8StFKpWCPlwNQC9S-eZjoZEXfz_DTlBVtuy0q4i1HoMNqUoG5J9KLfB1-A&lib=MJ2wyyDBvB62zrE3mKifoYAaP9F9f_5iG
-  let alertsEnabled = localStorage.getItem("crypto_alerts_on") === "true";
-  let lastNotifiedSignals = {};
-  let audioUnlocked = false;
+  // https://script.google.com/macros/s/AKfycbxPPGB08oSXJqayiChNJ3HhprkwnzeK7tGRRcFG8mzcSIGjqSW0gnUDDxO-oytztfKf0A/exec
+  const API_URL = "https://script.google.com/macros/s/AKfycbxPPGB08oSXJqayiChNJ3HhprkwnzeK7tGRRcFG8mzcSIGjqSW0gnUDDxO-oytztfKf0A/exec";
 
-  window.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById("alarmToggleBtn");
-    if (alertsEnabled) {
-      btn.classList.add("active");
-      btn.innerText = "🔔 Alerts ON (Tap anywhere for sound)";
-    }
-  });
+  let alertsEnabled = false;
+  let lastNotifiedSignals = {}; // Ek hi signal par baar-baar alarm na baje iske liye
 
-  document.addEventListener("click", () => {
-    if (alertsEnabled && !audioUnlocked) {
-      audioUnlocked = true;
-      const btn = document.getElementById("alarmToggleBtn");
-      btn.innerText = "🔔 Alerts ON (Active)";
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        ctx.resume();
-      } catch (e) {}
-    }
-  });
-
+  // Browser Permission aur Audio Unlock karne ke liye
   function enableAlerts() {
     alertsEnabled = !alertsEnabled;
-    localStorage.setItem("crypto_alerts_on", alertsEnabled);
     const btn = document.getElementById("alarmToggleBtn");
     
     if (alertsEnabled) {
-      audioUnlocked = true;
       btn.classList.add("active");
       btn.innerText = "🔔 Alerts ON (Active)";
+      
+      // Desktop Notification permission maangein
       if ("Notification" in window && Notification.permission !== "granted") {
         Notification.requestPermission();
       }
+      // Audio context unlock karein
       playBeep(600, 0.15);
     } else {
       btn.classList.remove("active");
@@ -123,6 +105,7 @@
     }
   }
 
+  // Bina kisi external MP3 file ke sharp alarm sound bajane ka function
   function playBeep(freq = 880, duration = 0.4) {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -136,10 +119,11 @@
       osc.start();
       setTimeout(() => { osc.stop(); ctx.close(); }, duration * 1000);
     } catch (e) {
-      console.log("Audio blocked until screen tap");
+      console.log("Audio blocked until user clicks button");
     }
   }
 
+  // Double Beep Alarm + Browser Notification
   function triggerAlarm(message) {
     playBeep(880, 0.25);
     setTimeout(() => playBeep(1100, 0.35), 300);
@@ -182,11 +166,12 @@
       data.results.forEach(item => {
         const price = item.cp > 0 ? "$" + Number(item.cp).toLocaleString('en-US', { maximumFractionDigits: 4 }) : "-";
         
+        // Check karein ki naya BUY ya SELL signal aaya hai kya
         if ((item.code === "BUY" || item.code === "SELL") && lastNotifiedSignals[item.c] !== item.code) {
           alertMessages.push(`${item.c}: ${item.sig} (RSI: ${item.rsi})`);
           lastNotifiedSignals[item.c] = item.code;
         } else if (item.code === "NONE") {
-          lastNotifiedSignals[item.c] = "NONE";
+          lastNotifiedSignals[item.c] = "NONE"; // Reset jab sideways ho jaye
         }
 
         rows += `
@@ -197,7 +182,7 @@
             <td><span class="badge ${getBadgeClass(item.t4)}">${item.t4}</span></td>
             <td><span class="badge ${getBadgeClass(item.t1)}">${item.t1}</span></td>
             <td><span class="badge ${getBadgeClass(item.t15)}">${item.t15}</span></td>
-            <td><strong>${item.rsi}</strong></td>
+            <td>${item.rsi}</td>
           </tr>
         `;
       });
@@ -209,13 +194,14 @@
       }
 
     } catch (error) {
-      tbody.innerHTML = `<tr><td colspan="7" class="loader" style="color:#f6465d;">Error fetching data. Check your Web App URL.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="loader" style="color:#f6465d;">Error fetching data. Check API URL.</td></tr>`;
     } finally {
       btn.disabled = false;
       btn.innerText = "🔄 Refresh Now";
     }
   }
 
+  // Page load par data fetch karein aur har 60 second me auto-refresh karein
   fetchData();
   setInterval(fetchData, 60000);
 </script>
